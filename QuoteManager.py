@@ -1,4 +1,6 @@
-import uuid,datetime
+import uuid
+from datetime import date
+import datetime
 from abc import ABCMeta, abstractmethod
 
 
@@ -34,46 +36,20 @@ class TradeResult(ABCTradeResult):
                  guid: uuid.UUID = None):
         super().__init__(symbol, volume_weighted_average_price, volume_requested, volume_executed, guid)
 
-# TradeResult('T1',100,20,30)
-class ABCQuoteManager(object, metaclass=ABCMeta):
 
-    # Add or update the quote (specified by Id) in symbol's book. 
-    # If quote is new or no longer in the book, add it. Otherwise update it to match the given price, volume, and symbol.
+class ABCQuoteManager(object, metaclass=ABCMeta):
     @abstractmethod
     def add_or_update_quote_by_guid(self, guid: uuid.UUID, abc_quote: ABCQuote):
         raise NotImplementedError()
-
-    # Remove quote by Id, if quote is no longer in symbol's book do nothing.
     @abstractmethod
     def remove_quote(self, guid: uuid.UUID):
         raise NotImplementedError()
-
-    # Remove all quotes on the specifed symbol's book.
     @abstractmethod
     def remove_all_quotes(self, symbol: str):
         raise NotImplementedError()
-
-    # Get the best (i.e. lowest) price in the symbol's book that still has available volume.
-    # If there is no quote on the symbol's book with available volume, return null.
-    # Otherwise return a Quote object with all the fields set.
-    # Don't return any quote which is past its expiration time, or has been removed.
     @abstractmethod
     def get_best_quote_with_available_volume(self, symbol: str) -> ABCQuote:
         raise NotImplementedError()
-
-    # Request that a trade be executed. For the purposes of this interface, assume that the trade is a request to BUY, not sell. Do not trade an expired quotes.
-    # To Execute a trade:
-    # * Search available quotes of the specified symbol from best price to worst price.
-    # * Until the requested volume has been filled, use as much available volume as necessary (up to what is available) from each quote, subtracting the used amount from the available amount.
-    # For example, we have two quotes:
-    # {Price: 1.0, Volume: 1,000, AvailableVolume: 750}
-    # {Price: 2.0, Volume: 1,000, AvailableVolume: 1,000}
-    # After calling once for 500 volume, the quotes are:
-    # {Price: 1.0, Volume: 1,000, AvailableVolume: 250}
-    # {Price: 2.0, Volume: 1,000, AvailableVolume: 1,000}
-    # And After calling this a second time for 500 volume, the quotes are:
-    # {Price: 1.0, Volume: 1,000, AvailableVolume: 0}
-    # {Price: 2.0, Volume: 1,000, AvailableVolume: 750}
     @abstractmethod
     def execute_trade(self, symbol: str, volume_requested: int) -> ABCTradeResult:
         raise NotImplementedError()
@@ -88,34 +64,50 @@ class QuoteManager(ABCQuoteManager):
     
     
     def print_all(self):
-      for i in dic:
-        print (i, dic[i].symbol,dic[i].price)
+      print("ID  SYM  PRICE     VOL  DATE")
+      [print (i, "   ",dic[i].symbol,"   ",dic[i].price,"   ",dic[i].available_volume,"   ",dic[i].expiration_datetime) for i in dic]
+      
+        
 
     def remove_quote(self, guid: uuid.UUID):
       del dic[guid]
 
 
     def remove_all_quotes(self, symbol: str):
+      #[del dic[key] for key in list(dic) if dic[key].symbol==symbol]
+
       for key in list(dic):
         #print(dic[key].symbol)
         if dic[key].symbol==symbol:
           del dic[key] 
-
+ 
     
 
     def get_best_quote_with_available_volume(self, symbol: str) -> ABCQuote:
-      pass
+      today = datetime.date.today()
+      smallest= 1000000000000000000000000
+      key=0
+      for i in dic:
+          if dic[i].expiration_datetime>today and smallest>dic[i].price and dic[i].available_volume:
+            smallest=dic[i].price
+            key=i
+      print('smallest price is ',smallest)
+      if smallest==0:
+        return None
+      return key
+
+
     def execute_trade(self, symbol: str, volume_requested: int) -> ABCTradeResult:
       pass
     
 
-Quote1=Quote('A',100,20,datetime.datetime.now())
-Quote2=Quote('A',40,60,datetime.datetime.now())
-Quote3=Quote('B',120,720,datetime.datetime.now())
-Quote4=Quote('A',70,30,datetime.datetime.now())
-Quote5=Quote('E',70,30,datetime.datetime.now())
-Quote6=Quote('E',70,30,datetime.datetime.now())
-Quote7=Quote('E',70,30,datetime.datetime.now())
+Quote1=Quote('A',100,20,date(2020, 4, 13))
+Quote2=Quote('A',40,60,date(2020, 3, 21))
+Quote3=Quote('B',120,720,date(2019, 12, 10))
+Quote4=Quote('A',70,30,date(2020, 1, 12))
+Quote5=Quote('E',70,30,date(2020, 7, 5))
+Quote6=Quote('E',70,30,date(2020, 12, 4))
+Quote7=Quote('E',20,0,date(2020, 12, 23))
 
 TradeResult1=TradeResult('T1',100,20,30)
 TradeResult2=TradeResult('T2',40,70,10)
@@ -132,7 +124,14 @@ QuoteManager1.add_or_update_quote_by_guid(5,Quote5)
 QuoteManager1.add_or_update_quote_by_guid(6,Quote6)
 QuoteManager1.add_or_update_quote_by_guid(7,Quote7)
 QuoteManager1.print_all()
-print("\n\n deleteing")
+
+
+print("\n\n********************************* \n")
 QuoteManager1.remove_all_quotes('E')
 QuoteManager1.print_all()
 
+
+
+print("\n\n********************************* \n")
+price=QuoteManager1.get_best_quote_with_available_volume('E')
+print(price)
