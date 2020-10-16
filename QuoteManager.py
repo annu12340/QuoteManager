@@ -98,10 +98,39 @@ class QuoteManager(ABCQuoteManager):
 
 
     def execute_trade(self, symbol: str, volume_requested: int) -> ABCTradeResult:
-      pass
+      # DO CODE REFACTOR
+      small ,key=self.find_smallest(symbol)
+      print(small ,key)
+      remaining_vol= dic[key].available_volume-volume_requested
+      if remaining_vol>0:
+        dic[key].available_volume=remaining_vol
+        return key
+      else:
+        self.find_best_trade(remaining_vol,key,volume_requested)
+      print (key, "   ",dic[key].symbol,"   ",dic[key].price,"   ",dic[key].available_volume,"   ",dic[key].expiration_datetime)
+     
+    
+    
+    def find_smallest(self,symbol,exclude=0):
+      small=100000000000000000
+      key=0
+      for i in dic:
+        if dic[i].symbol==symbol and dic[i].price!=exclude:
+            if small>=dic[i].price:
+              small=dic[i].price
+              key=i
+      return small ,key
     
 
-Quote1=Quote('A',100,20,date(2020, 4, 13))
+    def find_best_trade(self,remaining_vol,key,volume_requested):
+      if remaining_vol>0:
+        dic[key].available_volume=remaining_vol
+      else:
+        dic[key].available_volume-=dic[key].available_volume
+        volume_requested-=dic[key].available_volume
+        print('Max avaiable vol at that low price is',dic[key].available_volume, '\n remaining vol is',volume_requested)
+
+Quote1=Quote('A',20,20,date(2020, 4, 13))
 Quote2=Quote('A',40,60,date(2020, 3, 21))
 Quote3=Quote('B',120,720,date(2019, 12, 10))
 Quote4=Quote('A',70,30,date(2020, 1, 12))
@@ -126,12 +155,15 @@ QuoteManager1.add_or_update_quote_by_guid(7,Quote7)
 QuoteManager1.print_all()
 
 
-print("\n\n********************************* \n")
-QuoteManager1.remove_all_quotes('E')
-QuoteManager1.print_all()
+#print("\n\n********************************* \n")
+#QuoteManager1.remove_all_quotes('E')
+#QuoteManager1.print_all()
 
 
 
 print("\n\n********************************* \n")
-price=QuoteManager1.get_best_quote_with_available_volume('E')
-print(price)
+#price=QuoteManager1.get_best_quote_with_available_volume('E')
+#print(price)
+
+
+trade=QuoteManager1.execute_trade('A',40)
