@@ -163,9 +163,10 @@ class QuoteManager(ABCQuoteManager):
                 # If diff is negative, it means that the available vol of lowest price symbol is not sufficient. So we need to find the next lowest price symbol
                 volume_requested -= Quote_dic[lowest_price_id].available_volume
 
-                Quote_dic[lowest_price_id].available_volume -= Quote_dic[lowest_price_id].available_volume
+                
                 id = uuid.uuid4()
                 Trade_dic[id] = TradeResult(symbol, Quote_dic[lowest_price_id].price, global_volume_requested, Quote_dic[lowest_price_id].available_volume)
+                Quote_dic[lowest_price_id].available_volume -= Quote_dic[lowest_price_id].available_volume
                 # volume_requested will be the remaining vol
                 # ie remaining_vol = volume_requested - Quote_dic[lowest_price_id].available_volume
                 return volume_requested
@@ -176,10 +177,10 @@ class QuoteManager(ABCQuoteManager):
     # --------------------- Display functions --------------------
 
     def print_all_Quote_dic(self):
-        print("\n\n\t\t --------** Displaying Quote_dic **---------\n")
-        print(" \t\t\t    ID  \t\t\t\t\t   |    SYM    |    PRICE     |   Available Vol  |        DATE")
-        [print(i, " \t\t\t", Quote_dic[i].symbol, " \t\t", Quote_dic[i].price, " \t\t\t", Quote_dic[i].available_volume,
-               " \t\t\t", Quote_dic[i].expiration_datetime) for i in Quote_dic]
+        print("\n\n -----** Displaying Quote_dic **------\n")
+        print(" \t\t\t    ID  \t\t\t\t\t   |    SYM    |    PRICE     |        Available Vol  |                 DATE")
+        [print(i, " \t\t\t", Quote_dic[i].symbol, " \t\t", Quote_dic[i].price, " \t\t\t\t\t", Quote_dic[i].available_volume,
+               " \t\t\t\t\t", Quote_dic[i].expiration_datetime) for i in Quote_dic]
 
     def print_all_Trade_dic(self):
         print("\n\n\t\t **-------- Displaying Trade_dic --------** \n")
@@ -195,11 +196,12 @@ QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('A', 10, 750, date
 QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('A', 20, 1000, date(2020, 12, 21)))
 QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('B', 120, 720, date(2020, 12, 10)))
 QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('A', 30, 30, date(2020, 11, 12)))
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('E', 70, 30, date(2020, 7, 5)))
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('E', 70, 30, date(2020, 12, 4)))
+QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('A', 40, 30, date(1999, 11, 12)))
 QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('C', 10, 10, date(2020, 12, 13)))
 QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('C', 20, 20, date(2020, 12, 21)))
 QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('C', 30, 30, date(2020, 12, 10)))
+QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('E', 70, 30, date(2020, 7, 5)))
+QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('E', 70, 30, date(2020, 12, 4)))
 
 
 
@@ -207,9 +209,19 @@ print("\n\t\t\t\t __________________________________ INITIAL QUOTE TABLE _______
 QuoteManager1.print_all_Quote_dic()
 
 # QuoteManager1.remove_all_quotes('A')
-# QuoteManager1.remove_quote('96f85c32-38aa-4d3b-814a-ba8de8620e20')
+# 
 # QuoteManager1.get_best_quote_with_available_volume('A')
 # print("\n\n********************************* \n")
-QuoteManager1.execute_Trade('A', 500)
-QuoteManager1.execute_Trade('A', 500)
+
+QuoteManager1.remove_all_quotes('E')
+
+#QuoteManager1.remove_all_quotes('')
+
+QuoteManager1.get_best_quote_with_available_volume('C')
+
+
+print("\n\n*************After calling execute_Trade('C',35) ******************** \n")
 QuoteManager1.execute_Trade('C',35)
+
+
+
