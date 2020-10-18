@@ -27,6 +27,7 @@ def test_for_Existing_Symbol():
 def test_for_special_cases():
     QuoteManager1.add_or_update_quote_by_guid(0, Quote("smallest_symbol", 0, 10, date(2020, 12, 21)))
     QuoteManager1.add_or_update_quote_by_guid(-1, Quote("symbol with expiry date on 2019", 50, 50, date(2019, 12, 21)))
+    
     assert QuoteManager1.get_best_quote_with_available_volume("smallest_symbol") == 0
     assert QuoteManager1.execute_Trade("smallest_symbol",900) == None
     assert QuoteManager1.get_best_quote_with_available_volume("symbol with expiry date on 2019")==None
