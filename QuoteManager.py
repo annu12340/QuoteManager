@@ -48,7 +48,7 @@ class ABCQuoteManager(object, metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def remove_quote(self, guid: uuid.UUID):
+    def remove_quote(self,symbol:str, guid: uuid.UUID):
         raise NotImplementedError()
 
     @abstractmethod
@@ -60,7 +60,7 @@ class ABCQuoteManager(object, metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def execute_Trade(self, symbol: str, volume_requested: int) -> ABCTradeResult:
+    def execute_trade(self, symbol: str, volume_requested: int) -> ABCTradeResult:
         raise NotImplementedError()
 
 
@@ -69,159 +69,86 @@ class ABCQuoteManager(object, metaclass=ABCMeta):
 
 
 class QuoteManager(ABCQuoteManager):
-
     def add_or_update_quote_by_guid(self, guid: uuid.UUID, abc_quote: ABCQuote):
-        if guid in Quote_dic:
-            print('\n\t The quote with same id exits. So updating it to new value')
-            Quote_dic[guid].symbol = abc_quote.symbol
-            Quote_dic[guid].price = abc_quote.price
-            Quote_dic[guid].available_volume = abc_quote.available_volume
-            Quote_dic[guid].expiration_datetime = abc_quote.expiration_datetime
+      if abc_quote.symbol in Quote_dic:
+        if guid is Quote_dic[abc_quote.symbol]:
+          print('TODO update')
         else:
-            Quote_dic[guid] = abc_quote
-        print('Successfully added ', abc_quote.symbol, 'into the Quote_dic ')
+          Quote_dic[ abc_quote.symbol].append({'id':guid, 'price': abc_quote.price,'available_volume':abc_quote.available_volume, 'expiration_datetime':abc_quote.expiration_datetime})
+      else:
+        Quote_dic[ abc_quote.symbol]=[{'id':guid, 'price': abc_quote.price,'available_volume':abc_quote.available_volume, 'expiration_datetime':abc_quote.expiration_datetime}]
 
 
 
-    def remove_quote(self, guid: uuid.UUID):
-        if guid in Quote_dic:
-            del Quote_dic[guid]
-        else:
-            raise KeyError('Key is not found')
+    def remove_quote(self, guid: uuid.UUID,symbol:str):
+      Quote_dic[symbol]=list(filter(lambda x: x['id'] != guid, Quote_dic[symbol])) 
 
-
-
+ 
+            
     def remove_all_quotes(self, symbol: str):
-        symbol_found = 0
-        if symbol:
-            for key in list(Quote_dic):
-                if Quote_dic[key].symbol == symbol:
-                    del Quote_dic[key]
-                    symbol_found = 1
-            print('\n Removed all quotes of', symbol)
-            self.print_all_Quote_dic()
-            if symbol_found == 0:
-                raise KeyError('Symbol is not found')
-        else:
-            raise KeyError('Symbol is not found')
-
-
-
+        del Quote_dic[symbol] 
 
     def get_best_quote_with_available_volume(self, symbol: str) -> ABCQuote:
-      today = datetime.date.today()
-      smallest_value= 1000000
-      smallest_key_id=-1
-      for i in Quote_dic:
-          if Quote_dic[i].symbol==symbol and Quote_dic[i].expiration_datetime>today and smallest_value>Quote_dic[i].price and Quote_dic[i].available_volume:
-            smallest_value=Quote_dic[i].price
-            smallest_key_id=i
+      Quote_dic[symbol].sort(key=lambda x: x.get('price'))
+      for j in range(len(Quote_dic[symbol])):
+        if Quote_dic[symbol][j]['expiration_datetime']>datetime.date.today() and Quote_dic[symbol][j]['available_volume']:
+            return j,Quote_dic[symbol][j]
+      return 'Not found'
+    
+      
 
-      if smallest_value==1000000:
-        print('\nNo quote is available' )
-        return None
-      print('\nThe best quote for symbol',symbol,'is ',smallest_value )
-      return smallest_key_id
+    def execute_trade(self, symbol: str, volume_requested: int) -> ABCTradeResult:
+      while True:
+        print("\n\n\n --------------------------- \n ",Quote_dic[symbol],"\n\n\n --------------------------- \n ")
+        position, quote = self.get_best_quote_with_available_volume(symbol)
+        print(quote)
+        id = uuid.uuid4()
 
+        if quote is None:
+                return False
 
-
-
-
-    def execute_Trade(self, symbol: str, volume_requested: int) -> ABCTradeResult:
-        result = volume_requested
-        global_volume_requested = volume_requested
-        no_of_iteration = 1
-
-        if self.get_best_quote_with_available_volume(symbol):
-            while result >= 0:
-                print('\n\n\t\t\t * No of iteration:', no_of_iteration, '*')
-                result = self.execute_Trade_recursion(symbol, result, global_volume_requested)
-                print('REMAINING VOL = ', result)
-                no_of_iteration += 1
-            self.print_all_Trade_dic()
-            self.print_all_Quote_dic()
+        elif quote['available_volume'] >= volume_requested:
+                Quote_dic[symbol][position]['available_volume'] -= volume_requested
+                Trade_dic[id] = TradeResult(symbol, quote['price'], volume_requested, volume_requested)
+                return False
+  
         else:
-            print('\nERROR \t No quote is available')
-
-
-
-
-    def execute_Trade_recursion(self, symbol: str, volume_requested: int, global_volume_requested: int,) -> ABCTradeResult:
-        lowest_price_id = self.get_best_quote_with_available_volume(symbol)
-        if lowest_price_id:
-            diff_btw_requested_and_available = Quote_dic[lowest_price_id].available_volume - volume_requested
-            print('the diff is ', diff_btw_requested_and_available)
-
-            if diff_btw_requested_and_available >= 0:
-                #If diff is positive, then reduce its avialabilty in Quote_dic and add it into the Trade_dic. This would stop the recursion call
-
-                Quote_dic[lowest_price_id].available_volume -= volume_requested
-                id = uuid.uuid4()
-                Trade_dic[id] = TradeResult(symbol, Quote_dic[lowest_price_id].price, global_volume_requested, volume_requested)
-                return -1
-            else:
-                # If diff is negative, it means that the available vol of lowest price symbol is not sufficient. So we need to find the next lowest price symbol
-                volume_requested -= Quote_dic[lowest_price_id].available_volume
-
-                
-                id = uuid.uuid4()
-                Trade_dic[id] = TradeResult(symbol, Quote_dic[lowest_price_id].price, global_volume_requested, Quote_dic[lowest_price_id].available_volume)
-                Quote_dic[lowest_price_id].available_volume -= Quote_dic[lowest_price_id].available_volume
-                # volume_requested will be the remaining vol
-                # ie remaining_vol = volume_requested - Quote_dic[lowest_price_id].available_volume
-                return volume_requested
-        else:
-            print('ERROR OCCURED \n ')
-            return -1
-
+                volume_executed = quote['available_volume']
+                Quote_dic[symbol][position]['available_volume']= 0
+                Trade_dic[id] = TradeResult(symbol, quote['price'], volume_requested, volume_executed)
+                return self.execute_trade(symbol,volume_requested - volume_executed)
+    
     # --------------------- Display functions --------------------
 
     def print_all_Quote_dic(self):
         print("\n\n -----** Displaying Quote_dic **------\n")
-        print(" \t\t\t    ID  \t\t\t\t\t   |    SYM    |    PRICE     |        Available Vol  |                 DATE")
-        [print(i, " \t\t\t", Quote_dic[i].symbol, " \t\t", Quote_dic[i].price, " \t\t\t\t\t", Quote_dic[i].available_volume,
-               " \t\t\t\t\t", Quote_dic[i].expiration_datetime) for i in Quote_dic]
 
+        for i in Quote_dic:
+          print('\n\n\t i is',i,"\n\n ******************** \n" )
+          for j in range(len(Quote_dic[i])):
+            print(Quote_dic[i][j])
+        
     def print_all_Trade_dic(self):
         print("\n\n\t\t **-------- Displaying Trade_dic --------** \n")
         print("SYM |  vol/wt   | vol_req   |   vol_exec")
         [print(Trade_dic[i].symbol, "     ", Trade_dic[i].volume_weighted_average_price, "         ",
                Trade_dic[i].volume_requested, "        ", Trade_dic[i].volume_executed) for i in Trade_dic]
-
-
+        
 # ------------------------------------------------ * Object creation * ----------------------------------------------------------
 
 QuoteManager1 = QuoteManager()
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('A', 10, 750, date(2020, 12, 13)))
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('A', 20, 1000, date(2020, 12, 21)))
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('B', 120, 720, date(2020, 12, 10)))
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('A', 30, 30, date(2020, 11, 12)))
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('A', 40, 30, date(1999, 11, 12)))
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('C', 10, 10, date(2020, 12, 13)))
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('C', 20, 20, date(2020, 12, 21)))
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('C', 30, 30, date(2020, 12, 10)))
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('E', 70, 30, date(2020, 7, 5)))
-QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('E', 70, 30, date(2020, 12, 4)))
-
-
-
-print("\n\t\t\t\t __________________________________ INITIAL QUOTE TABLE __________________________________ ")
+QuoteManager1.add_or_update_quote_by_guid(1, Quote('A', 10, 10, date(2020, 12, 13)))
+QuoteManager1.add_or_update_quote_by_guid(2, Quote('A', 20, 20, date(2020, 12, 21)))
+QuoteManager1.add_or_update_quote_by_guid(3, Quote('A', 30, 30, date(2020, 12, 10)))
+#QuoteManager1.add_or_update_quote_by_guid(4, Quote('D', 30, 30, date(2020, 11, 12)))
+#QuoteManager1.add_or_update_quote_by_guid(7, Quote('A', 440, 30, date(1999, 11, 12)))
+#QuoteManager1.add_or_update_quote_by_guid(5, Quote('A', 40, 30, date(2021, 11, 12)))
+#QuoteManager1.add_or_update_quote_by_guid(6, Quote('A', 5, 30, date(1999, 11, 12)))
+#QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('C', 10, 10, date(2020, 12, 13)))
+#QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('C', 20, 20, date(2020, 12, 21)))
+#QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('C', 30, 30, date(2020, 12, 10)))
+#QuoteManager1.add_or_update_quote_by_guid(uuid.uuid4(), Quote('E', 70, 30, date(2020, 7, 5)))
+QuoteManager1.add_or_update_quote_by_guid(8, Quote('E', 70, 30, date(2020, 12, 4)))
+QuoteManager1.execute_trade('A',35)
 QuoteManager1.print_all_Quote_dic()
-
-# QuoteManager1.remove_all_quotes('A')
-# 
-# QuoteManager1.get_best_quote_with_available_volume('A')
-# print("\n\n********************************* \n")
-
-QuoteManager1.remove_all_quotes('E')
-
-#QuoteManager1.remove_all_quotes('')
-
-QuoteManager1.get_best_quote_with_available_volume('C')
-
-
-print("\n\n*************After calling execute_Trade('C',35) ******************** \n")
-QuoteManager1.execute_Trade('C',35)
-
-
-
+QuoteManager1.print_all_Trade_dic()
